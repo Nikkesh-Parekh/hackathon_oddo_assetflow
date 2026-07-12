@@ -51,7 +51,7 @@ export default function MainLayout() {
               className={({ isActive }) =>
                 `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
                   isActive 
-                    ? 'bg-accent text-primary font-semibold' 
+                    ? 'bg-primary text-primary-foreground font-semibold' 
                     : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
                 }`
               }
@@ -63,7 +63,7 @@ export default function MainLayout() {
         </div>
         <div className="p-4 border-t border-border">
           <div className="flex items-center px-3 py-2 mb-2">
-            <div className="h-8 w-8 rounded-full bg-accent text-primary flex items-center justify-center font-bold text-sm uppercase">
+            <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm uppercase">
               {user?.name.charAt(0)}
             </div>
             <div className="ml-3 overflow-hidden">
