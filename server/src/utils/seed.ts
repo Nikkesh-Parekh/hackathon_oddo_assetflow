@@ -69,6 +69,10 @@ export const seedDatabase = async () => {
         condition: 'Good', location: 'HQ - Floor 1', status: AssetStatus.AVAILABLE, isSharedBookable: true
       },
       {
+        name: 'Conference Room B', category: catRooms._id, assetTag: 'ROOM-B',
+        condition: 'Good', location: 'HQ - Floor 2', status: AssetStatus.AVAILABLE, isSharedBookable: true
+      },
+      {
         name: 'Projector 4K', category: catElectronics._id, assetTag: 'AF-0004', serialNumber: 'SN-PRJ-001',
         condition: 'Needs Repair', location: 'HQ - Floor 2', status: AssetStatus.UNDER_MAINTENANCE, isSharedBookable: true
       }
