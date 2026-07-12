@@ -50,7 +50,7 @@ export default function Approvals() {
   const handleMaintenanceAction = async (id: string, action: 'approve' | 'reject') => {
     if (!window.confirm(`Are you sure you want to ${action} this maintenance request?`)) return;
     try {
-      await api.put(`/maintenance/${id}`, {
+      await api.put(`/maintenance/${id}/approve`, {
         status: action === 'approve' ? 'Approved' : 'Rejected',
       });
       fetchData();
