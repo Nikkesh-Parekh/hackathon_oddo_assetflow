@@ -21,7 +21,7 @@ export default function Approvals() {
         api.get('/maintenance'),
       ]);
       setPendingTransfers(allocRes.data.filter((a: any) => a.status === 'Transfer Requested'));
-      setPendingMaintenance(maintRes.data.filter((m: any) => m.status === 'Pending' || m.status === 'Approved'));
+      setPendingMaintenance(maintRes.data.filter((m: any) => m.status === 'Pending'));
     } catch (err) {
       console.error('Failed to load approvals', err);
     } finally {
