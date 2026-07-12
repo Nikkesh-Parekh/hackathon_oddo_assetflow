@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import { Shield, Wrench, DollarSign, Package } from 'lucide-react';
+import { Shield, Wrench, DollarSign, Package, FileSpreadsheet } from 'lucide-react';
 
 const COLORS = ['var(--color-primary)', 'var(--color-accent-foreground)', '#b794f4', '#f56565'];
 
@@ -72,11 +73,38 @@ export default function Reports() {
     cost: costMap[key]
   }));
 
+  const downloadCSV = () => {
+    const csvRows = [];
+    csvRows.push(['Category', 'Available', 'Allocated', 'Under Maintenance']);
+    categoryData.forEach(row => {
+      const catAssets = assets.filter(a => (a.category?.name || 'Uncategorized') === row.name);
+      const avail = catAssets.filter(a => a.status === 'Available').length;
+      const alloc = catAssets.filter(a => a.status === 'Allocated').length;
+      const maint = catAssets.filter(a => a.status === 'Under Maintenance').length;
+      csvRows.push([row.name, avail, alloc, maint]);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + csvRows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "operational_analytics.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 fade-in font-sans">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Operational Analytics</h2>
-        <p className="text-sm text-muted-foreground mt-1">Audit logs, asset distributions, and maintenance cost reports.</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Operational Analytics</h2>
+          <p className="text-sm text-muted-foreground mt-1">Audit logs, asset distributions, and maintenance cost reports.</p>
+        </div>
+        <Button onClick={downloadCSV} className="gap-2 text-sm font-semibold">
+          <FileSpreadsheet className="h-4.5 w-4.5" /> Export Excel/CSV
+        </Button>
       </div>
 
       {isLoading ? (

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Search, Plus, Wrench, Shield } from 'lucide-react';
+import { Search, Plus, Wrench, Shield, QrCode, FileSpreadsheet, Eye, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function AssetDirectory() {
@@ -17,8 +17,13 @@ export default function AssetDirectory() {
   const [isLoading, setIsLoading] = useState(true);
   const [showRegModal, setShowRegModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
-  const [detailTab, setDetailTab] = useState<'info' | 'history'>('info');
+  const [detailTab, setDetailTab] = useState<'info' | 'history' | 'timeline'>('info');
+
+  // QR Simulator State
+  const [simulatedScanTag, setSimulatedScanTag] = useState('');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,14 +120,65 @@ export default function AssetDirectory() {
     setCustomAttributes(prev => ({ ...prev, [fieldName]: value }));
   };
 
+  const executeQRScan = () => {
+    if (!simulatedScanTag) return;
+    const targetAsset = assets.find(a => a.assetTag === simulatedScanTag);
+    if (targetAsset) {
+      setSelectedAsset(targetAsset);
+      setDetailTab('info');
+      setShowScanModal(false);
+      setShowDetailModal(true);
+    } else {
+      alert('Asset tag code not found!');
+    }
+  };
+
+  const exportAssetDirectoryCSV = () => {
+    const csvRows = [];
+    csvRows.push(['Asset Tag', 'Name', 'Category', 'Location', 'Status', 'Condition', 'Serial Number']);
+    
+    filteredAssets.forEach(a => {
+      csvRows.push([
+        a.assetTag,
+        a.name,
+        a.category?.name || 'General',
+        a.location,
+        a.status,
+        a.condition,
+        a.serialNumber || '-'
+      ]);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + csvRows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "assets_directory.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
 
   // Filtered Assets list
   const filteredAssets = assets.filter((asset) => {
-    const matchesSearch = 
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.assetTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    let matchesSearch = true;
+    
+    // AI keyword commands / query assistance
+    if (searchQuery.toLowerCase().startsWith('/laptops')) {
+      matchesSearch = (asset.category?.name || '').toLowerCase().includes('laptop');
+    } else if (searchQuery.toLowerCase().startsWith('/available')) {
+      matchesSearch = asset.status === 'Available';
+    } else if (searchQuery.toLowerCase().startsWith('/repair')) {
+      matchesSearch = asset.status === 'Under Maintenance';
+    } else {
+      matchesSearch = 
+        asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        asset.assetTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
     
     const matchesStatus = statusFilter ? asset.status === statusFilter : true;
     const matchesCategory = categoryFilter ? asset.category?._id === categoryFilter : true;
@@ -144,15 +200,23 @@ export default function AssetDirectory() {
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Asset Directory Ledger</h2>
           <p className="text-sm text-muted-foreground mt-1">Register, track, filter, and reconciliation log for company resources.</p>
         </div>
-        {isManager && (
-          <Button onClick={() => setShowRegModal(true)} className="shrink-0 gap-2 text-sm font-semibold">
-            <Plus className="h-4.5 w-4.5" /> Register Asset
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="outline" onClick={() => setShowScanModal(true)} className="gap-1.5 text-xs">
+            <QrCode className="h-4 w-4" /> Scan QR Code
           </Button>
-        )}
+          <Button variant="outline" onClick={exportAssetDirectoryCSV} className="gap-1.5 text-xs">
+            <FileSpreadsheet className="h-4 w-4" /> Export CSV
+          </Button>
+          {isManager && (
+            <Button onClick={() => setShowRegModal(true)} className="gap-1.5 text-xs font-semibold">
+              <Plus className="h-4 w-4" /> Register Asset
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* FILTER SEARCH BAR */}
-      <Card className="border border-border">
+      <Card className="border border-border bg-card">
         <div className="p-4 flex flex-wrap gap-4 items-center justify-between">
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
@@ -191,6 +255,12 @@ export default function AssetDirectory() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* AI smart search assistant hint */}
+        <div className="px-4 pb-3 flex items-center gap-1.5 text-[11px] text-primary bg-accent/5 rounded-b-xl border-t border-border/30">
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>Pro tip: Use search commands like <span className="font-semibold underline">/laptops</span>, <span className="font-semibold underline">/available</span>, or <span className="font-semibold underline">/repair</span> for AI-speed smart filters.</span>
         </div>
 
         <CardContent className="p-0">
@@ -405,6 +475,41 @@ export default function AssetDirectory() {
         </div>
       )}
 
+      {/* QR SCAN SIMULATION MODAL */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4 font-sans text-center">
+            <h3 className="text-lg font-bold text-foreground">Simulate Scan QR Code</h3>
+            
+            {/* Visual Scan Camera Frame Overlay */}
+            <div className="relative h-44 w-full bg-accent/20 border-2 border-primary rounded-xl overflow-hidden flex flex-col justify-center items-center">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary shadow-lg animate-pulse" style={{ animationDuration: '2s', transform: 'translateY(88px)' }} />
+              <Eye className="h-10 w-10 text-primary/40 animate-pulse" />
+              <span className="text-[10px] text-muted-foreground mt-2">Positioning Scanner lens...</span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground block text-left">Choose QR Target Asset:</label>
+              <select 
+                value={simulatedScanTag} 
+                onChange={(e) => setSimulatedScanTag(e.target.value)}
+                className="w-full h-10 px-3 py-1.5 text-sm bg-background border border-border text-foreground rounded-lg"
+              >
+                <option value="">-- Choose Asset Tag --</option>
+                {assets.map(a => (
+                  <option key={a._id} value={a.assetTag}>{a.name} ({a.assetTag})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setShowScanModal(false)}>Cancel</Button>
+              <Button onClick={executeQRScan} disabled={!simulatedScanTag}>Simulate Scanning</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ASSET DETAIL VIEW MODAL */}
       {showDetailModal && selectedAsset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
@@ -440,6 +545,14 @@ export default function AssetDirectory() {
                 }`}
               >
                 History Logs
+              </button>
+              <button 
+                onClick={() => setDetailTab('timeline')}
+                className={`px-3 py-1.5 text-xs font-bold border-b-2 cursor-pointer ${
+                  detailTab === 'timeline' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+                }`}
+              >
+                Asset Timeline
               </button>
             </div>
 
@@ -543,6 +656,73 @@ export default function AssetDirectory() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* TIMELINE TAB */}
+            {detailTab === 'timeline' && (
+              <div className="p-4 space-y-6">
+                <div className="relative border-l-2 border-border pl-6 space-y-6 text-xs text-left">
+                  {/* Step 1 */}
+                  <div className="relative">
+                    <span className="absolute -left-[31px] top-0 h-4 w-4 rounded-full border-2 border-primary bg-background flex items-center justify-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    </span>
+                    <h5 className="font-bold text-foreground">Registered</h5>
+                    <p className="text-muted-foreground mt-0.5">Asset setup complete, initialized as Available.</p>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="relative">
+                    <span className={`absolute -left-[31px] top-0 h-4 w-4 rounded-full border-2 bg-background flex items-center justify-center ${
+                      selectedAsset.status === 'Allocated' || assetAllocations.length > 0
+                        ? 'border-primary' 
+                        : 'border-border'
+                    }`}>
+                      {(selectedAsset.status === 'Allocated' || assetAllocations.length > 0) && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </span>
+                    <h5 className={`font-bold ${selectedAsset.status === 'Allocated' || assetAllocations.length > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      Allocated / In Use
+                    </h5>
+                    <p className="text-muted-foreground mt-0.5">Assigned to an employee or department division for ownership tasks.</p>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="relative">
+                    <span className={`absolute -left-[31px] top-0 h-4 w-4 rounded-full border-2 bg-background flex items-center justify-center ${
+                      selectedAsset.status === 'Under Maintenance' || assetMaintenance.length > 0
+                        ? 'border-primary' 
+                        : 'border-border'
+                    }`}>
+                      {(selectedAsset.status === 'Under Maintenance' || assetMaintenance.length > 0) && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </span>
+                    <h5 className={`font-bold ${selectedAsset.status === 'Under Maintenance' || assetMaintenance.length > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      Defect / Repair Cycle
+                    </h5>
+                    <p className="text-muted-foreground mt-0.5">Defect logged, ticket resolved, or technician allocated.</p>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className="relative">
+                    <span className={`absolute -left-[31px] top-0 h-4 w-4 rounded-full border-2 bg-background flex items-center justify-center ${
+                      ['Lost', 'Retired', 'Disposed'].includes(selectedAsset.status)
+                        ? 'border-primary' 
+                        : 'border-border'
+                    }`}>
+                      {['Lost', 'Retired', 'Disposed'].includes(selectedAsset.status) && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </span>
+                    <h5 className={`font-bold ${['Lost', 'Retired', 'Disposed'].includes(selectedAsset.status) ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      Disposed / Decommissioned
+                    </h5>
+                    <p className="text-muted-foreground mt-0.5">Asset retired due to age, wear-and-tear, loss, or scrap sales.</p>
+                  </div>
                 </div>
               </div>
             )}

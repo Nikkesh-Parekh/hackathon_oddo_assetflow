@@ -101,6 +101,10 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: none; /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
