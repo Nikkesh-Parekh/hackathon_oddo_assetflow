@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import ActivityLog from '../models/ActivityLog';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 // @desc    Get all users (Employee Directory)
@@ -39,6 +40,21 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     } else {
       res.status(404).json({ message: 'User not found' });
     }
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get system activity logs
+// @route   GET /api/users/logs
+// @access  Private
+export const getActivityLogs = async (req: AuthRequest, res: Response) => {
+  try {
+    const logs = await ActivityLog.find({})
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(30);
+    res.json(logs);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

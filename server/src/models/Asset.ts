@@ -24,6 +24,7 @@ export interface IAsset extends Document {
   status: AssetStatus;
   department?: mongoose.Types.ObjectId; // Current assigned department if any
   assignedTo?: mongoose.Types.ObjectId; // Current assigned user if any
+  customAttributes?: Map<string, string>;
 }
 
 const assetSchema = new Schema<IAsset>(
@@ -44,7 +45,8 @@ const assetSchema = new Schema<IAsset>(
       default: AssetStatus.AVAILABLE
     },
     department: { type: Schema.Types.ObjectId, ref: 'Department' },
-    assignedTo: { type: Schema.Types.ObjectId, ref: 'User' }
+    assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
+    customAttributes: { type: Map, of: String }
   },
   { timestamps: true }
 );

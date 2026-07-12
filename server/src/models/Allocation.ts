@@ -17,6 +17,8 @@ export interface IAllocation extends Document {
   conditionOut: string;
   conditionIn?: string;
   notes?: string;
+  transferRequestedBy?: mongoose.Types.ObjectId;
+  transferNotes?: string;
 }
 
 const allocationSchema = new Schema<IAllocation>(
@@ -34,7 +36,9 @@ const allocationSchema = new Schema<IAllocation>(
     },
     conditionOut: { type: String, required: true },
     conditionIn: { type: String },
-    notes: { type: String }
+    notes: { type: String },
+    transferRequestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    transferNotes: { type: String }
   },
   { timestamps: true }
 );
