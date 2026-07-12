@@ -45,8 +45,8 @@ export default function Allocations() {
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchInitialData = async () => {
-    setIsLoading(true);
+  const fetchInitialData = async (isInitial = false) => {
+    if (isInitial) setIsLoading(true);
     try {
       const [allocRes, assetRes, userRes, deptRes] = await Promise.all([
         api.get('/allocations'),
@@ -66,7 +66,7 @@ export default function Allocations() {
   };
 
   useEffect(() => {
-    fetchInitialData();
+    fetchInitialData(true);
   }, []);
 
   const handleAllocate = async (e: React.FormEvent) => {

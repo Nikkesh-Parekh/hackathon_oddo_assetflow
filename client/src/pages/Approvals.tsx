@@ -13,8 +13,8 @@ export default function Approvals() {
   const [pendingMaintenance, setPendingMaintenance] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (isInitial = false) => {
+    if (isInitial) setIsLoading(true);
     try {
       const [allocRes, maintRes] = await Promise.all([
         api.get('/allocations'),
@@ -30,7 +30,7 @@ export default function Approvals() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, []);
 
   const handleTransferAction = async (id: string, action: 'approve' | 'reject') => {

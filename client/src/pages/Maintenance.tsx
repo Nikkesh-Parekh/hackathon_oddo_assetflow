@@ -35,8 +35,8 @@ export default function Maintenance() {
   const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'pending' | 'resolved'>('mine');
   const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
 
-  const fetchInitialData = async () => {
-    setIsLoading(true);
+  const fetchInitialData = async (isInitial = false) => {
+    if (isInitial) setIsLoading(true);
     try {
       const [maintRes, assetsRes] = await Promise.all([
         api.get('/maintenance'),
@@ -52,7 +52,7 @@ export default function Maintenance() {
   };
 
   useEffect(() => {
-    fetchInitialData();
+    fetchInitialData(true);
   }, []);
 
   const handleCreateRequest = async (e: React.FormEvent) => {

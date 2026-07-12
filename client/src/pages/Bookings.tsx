@@ -31,8 +31,8 @@ export default function Bookings() {
 
   const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (isInitial = false) => {
+    if (isInitial) setIsLoading(true);
     try {
       const [bookingsRes, assetsRes] = await Promise.all([
         api.get('/bookings'),
@@ -47,7 +47,7 @@ export default function Bookings() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(true); }, []);
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();

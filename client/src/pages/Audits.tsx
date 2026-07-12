@@ -30,8 +30,8 @@ export default function Audits() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const fetchCyclesAndMetadata = async () => {
-    setIsLoading(true);
+  const fetchCyclesAndMetadata = async (isInitial = false) => {
+    if (isInitial) setIsLoading(true);
     try {
       const [cycleRes, assetRes, userRes] = await Promise.all([
         api.get('/audits/cycles'),
@@ -49,7 +49,7 @@ export default function Audits() {
   };
 
   useEffect(() => {
-    fetchCyclesAndMetadata();
+    fetchCyclesAndMetadata(true);
   }, []);
 
   const handleCreateCycle = async (e: React.FormEvent) => {
