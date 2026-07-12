@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Booking, { BookingStatus } from '../models/Booking';
 import Asset from '../models/Asset';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { UserRole } from '../models/User';
 
 // @desc    Book a resource
 // @route   POST /api/bookings
@@ -53,7 +54,10 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const getBookings = async (req: AuthRequest, res: Response) => {
   try {
-    const bookings = await Booking.find({})
+    const isManager = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.ASSET_MANAGER;
+    const query = isManager ? {} : { user: req.user?._id };
+
+    const bookings = await Booking.find(query)
       .populate('asset', 'name location')
       .populate('user', 'name email');
     res.json(bookings);

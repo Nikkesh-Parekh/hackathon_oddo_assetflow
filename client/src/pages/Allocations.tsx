@@ -32,6 +32,9 @@ export default function Allocations() {
   // Conflict state
   const [conflictAllocId, setConflictAllocId] = useState('');
   const [conflictHolder, setConflictHolder] = useState('');
+  const [conflictDept, setConflictDept] = useState('');
+  const [conflictReturnDate, setConflictReturnDate] = useState('');
+  const [conflictAssetName, setConflictAssetName] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
   const [isRequestingTransfer, setIsRequestingTransfer] = useState(false);
 
@@ -88,9 +91,13 @@ export default function Allocations() {
     } catch (err: any) {
       if (err.response?.status === 409) {
         // Double allocation conflict! Offer transfer request
-        setConflictAllocId(err.response.data.allocationId);
-        setConflictHolder(err.response.data.currentHolder);
-        setSubmitError(`Conflict: This asset is currently checked out by ${err.response.data.currentHolder}.`);
+        const d = err.response.data;
+        setConflictAllocId(d.allocationId);
+        setConflictHolder(d.currentHolder || 'Unknown');
+        setConflictDept(d.department || '');
+        setConflictReturnDate(d.expectedReturnDate || '');
+        setConflictAssetName(assets.find(a => a._id === assetId)?.name || '');
+        setSubmitError('CONFLICT');
       } else {
         setSubmitError(err.response?.data?.message || 'Failed to allocate asset');
       }
@@ -162,6 +169,9 @@ export default function Allocations() {
     setNotes('');
     setConflictAllocId('');
     setConflictHolder('');
+    setConflictDept('');
+    setConflictReturnDate('');
+    setConflictAssetName('');
     setTransferNotes('');
   };
 
@@ -357,20 +367,39 @@ export default function Allocations() {
           <div className="w-full max-w-lg p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-foreground">Allocate Asset</h3>
             
-            {submitError && (
-              <div className={`p-3 text-xs rounded-lg border flex gap-2 items-start ${
-                conflictAllocId 
-                  ? 'bg-amber-950/20 text-amber-400 border-amber-900/30' 
-                  : 'bg-destructive/10 text-destructive border-destructive/20'
-              }`}>
+            {submitError && submitError !== 'CONFLICT' && (
+              <div className="p-3 text-xs rounded-lg border flex gap-2 items-start bg-destructive/10 text-destructive border-destructive/20">
                 <Info className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-semibold">{submitError}</p>
-                  {conflictAllocId && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      You can request a direct transfer from the current holder.
-                    </p>
-                  )}
+                <p className="font-semibold">{submitError}</p>
+              </div>
+            )}
+
+            {/* Rich Conflict Card */}
+            {conflictAllocId && (
+              <div className="rounded-xl border border-amber-900/40 bg-amber-950/10 overflow-hidden">
+                <div className="px-4 py-3 bg-amber-950/20 border-b border-amber-900/30 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-amber-400 shrink-0" />
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Asset Currently In Use</p>
+                </div>
+                <div className="px-4 py-4 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">{conflictAssetName}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card rounded-lg p-3 border border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Current Holder</p>
+                      <p className="text-sm font-bold text-foreground">{conflictHolder}</p>
+                    </div>
+                    <div className="bg-card rounded-lg p-3 border border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Department</p>
+                      <p className="text-sm font-bold text-foreground">{conflictDept || '—'}</p>
+                    </div>
+                    {conflictReturnDate && (
+                      <div className="col-span-2 bg-card rounded-lg p-3 border border-border">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Expected Return</p>
+                        <p className="text-sm font-bold text-amber-400">{new Date(conflictReturnDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">You can raise a transfer request to move this asset to a new holder.</p>
                 </div>
               </div>
             )}

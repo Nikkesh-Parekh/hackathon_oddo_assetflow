@@ -3,6 +3,7 @@ import Allocation, { AllocationStatus } from '../models/Allocation';
 import Asset, { AssetStatus } from '../models/Asset';
 import ActivityLog from '../models/ActivityLog';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { UserRole } from '../models/User';
 
 // @desc    Allocate an asset
 // @route   POST /api/allocations
@@ -24,20 +25,28 @@ export const allocateAsset = async (req: AuthRequest, res: Response) => {
         .populate('assignedToDepartment', 'name');
 
       let holderName = 'Unknown';
+      let holderDept = '';
+      let holderReturnDate = '';
       if (currentAlloc) {
         if (currentAlloc.assignedToUser) {
           holderName = (currentAlloc.assignedToUser as any).name;
+          holderDept = (currentAlloc.assignedToUser as any).department?.name || '';
         } else if (currentAlloc.assignedToDepartment) {
           holderName = (currentAlloc.assignedToDepartment as any).name;
+          holderDept = (currentAlloc.assignedToDepartment as any).name;
         }
+        holderReturnDate = currentAlloc.expectedReturnDate?.toISOString() || '';
       }
 
       res.status(409).json({ 
         message: `Asset is currently held by ${holderName}.`,
         allocationId: currentAlloc?._id,
-        currentHolder: holderName
+        currentHolder: holderName,
+        department: holderDept,
+        expectedReturnDate: holderReturnDate,
       });
       return;
+
     }
 
     const allocation = await Allocation.create({
@@ -218,7 +227,18 @@ export const returnAsset = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const getAllocations = async (req: AuthRequest, res: Response) => {
   try {
-    const allocations = await Allocation.find({})
+    const isManager = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.ASSET_MANAGER;
+    // If not manager, only find checkouts assigned to this user or their department
+    const query = isManager 
+      ? {} 
+      : { 
+          $or: [
+            { assignedToUser: req.user?._id },
+            ...(req.user?.department ? [{ assignedToDepartment: req.user.department }] : [])
+          ]
+        };
+
+    const allocations = await Allocation.find(query)
       .populate('asset', 'name assetTag')
       .populate('assignedToUser', 'name')
       .populate('assignedToDepartment', 'name')

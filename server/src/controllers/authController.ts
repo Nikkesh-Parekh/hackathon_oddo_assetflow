@@ -32,7 +32,7 @@ export const signup = async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id as string, user.role),
+      token: generateToken(user._id.toString(), user.role),
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -55,7 +55,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        token: generateToken(user._id as string, user.role),
+        token: generateToken(user._id.toString(), user.role),
       });
     } else {
       res.status(401).json({ message: 'Invalid email, password, or account inactive' });

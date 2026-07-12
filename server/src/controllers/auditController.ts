@@ -4,6 +4,7 @@ import AuditResult, { AuditResultStatus } from '../models/AuditResult';
 import Asset from '../models/Asset';
 import ActivityLog from '../models/ActivityLog';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { UserRole } from '../models/User';
 
 // @desc    Create an audit cycle
 // @route   POST /api/audits/cycles
@@ -60,6 +61,15 @@ export const submitAuditResult = async (req: AuthRequest, res: Response) => {
     const cycle = await AuditCycle.findById(auditCycleId);
     if (!cycle) {
       res.status(404).json({ message: 'Audit cycle not found' });
+      return;
+    }
+
+    // Check authorization: Admin, Asset Manager, or Designated Auditor
+    const isManager = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.ASSET_MANAGER;
+    const isDesignatedAuditor = cycle.auditors.some(aud => aud.toString() === req.user?._id?.toString());
+
+    if (!isManager && !isDesignatedAuditor) {
+      res.status(403).json({ message: 'You are not authorized to audit this cycle. Only designated auditors or managers are allowed.' });
       return;
     }
 

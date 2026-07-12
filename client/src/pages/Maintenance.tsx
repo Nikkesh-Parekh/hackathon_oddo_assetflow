@@ -32,6 +32,8 @@ export default function Maintenance() {
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'pending' | 'resolved'>('mine');
+  const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
 
   const fetchInitialData = async () => {
     setIsLoading(true);
@@ -116,18 +118,48 @@ export default function Maintenance() {
     }
   };
 
-  const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
+
 
   return (
     <div className="space-y-6 fade-in font-sans">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Maintenance Log</h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage asset repairs, log resolution history, and assign technicians.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isManager ? 'Review, approve, and resolve all maintenance tickets across the organisation.' : 'Report issues with your equipment and track repair status.'}
+          </p>
         </div>
         <Button onClick={() => setShowRequestModal(true)} className="gap-2 text-sm font-semibold">
           <Plus className="h-4.5 w-4.5" /> Raise Request
         </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border gap-1">
+        {isManager ? (
+          (['all', 'pending', 'resolved'] as const).map(tab => {
+            const counts: Record<string, number> = {
+              all: requests.length,
+              pending: requests.filter(r => r.status === 'Pending').length,
+              resolved: requests.filter(r => r.status === 'Resolved').length,
+            };
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer capitalize ${
+                  activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}>
+                {tab === 'all' ? `All Tickets (${counts.all})` : tab === 'pending' ? `Pending (${counts.pending})` : `Resolved (${counts.resolved})`}
+              </button>
+            );
+          })
+        ) : (
+          (['mine'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab('mine')}
+              className="px-5 py-2.5 text-sm font-semibold border-b-2 border-primary text-primary cursor-pointer">
+              My Tickets ({requests.filter(r => r.requestedBy?._id === user?._id).length})
+            </button>
+          ))
+        )}
       </div>
 
       <Card className="border border-border">
@@ -137,7 +169,13 @@ export default function Maintenance() {
         <CardContent>
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Loading tickets...</div>
-          ) : requests.length === 0 ? (
+          ) : (() => {
+            const displayed = isManager
+              ? activeTab === 'pending' ? requests.filter(r => r.status === 'Pending')
+              : activeTab === 'resolved' ? requests.filter(r => r.status === 'Resolved')
+              : requests
+              : requests.filter(r => r.requestedBy?._id === user?._id);
+            return displayed.length === 0 ? (
             <div className="text-center text-muted-foreground py-12 flex flex-col items-center justify-center border border-dashed border-border rounded-xl">
               <Wrench className="h-10 w-10 text-muted-foreground/30 mb-2" />
               No active maintenance tickets found.
@@ -156,7 +194,13 @@ export default function Maintenance() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {requests.map((req) => (
+                  {(() => {
+                    const displayed = isManager
+                      ? activeTab === 'pending' ? requests.filter(r => r.status === 'Pending')
+                      : activeTab === 'resolved' ? requests.filter(r => r.status === 'Resolved')
+                      : requests
+                      : requests.filter(r => r.requestedBy?._id === user?._id);
+                    return displayed.map((req) => (
                     <tr key={req._id} className="hover:bg-accent/10 transition-colors">
                       <td className="px-6 py-4">
                         <span className="flex flex-col">
@@ -218,11 +262,13 @@ export default function Maintenance() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 

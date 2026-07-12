@@ -73,6 +73,31 @@ export default function Reports() {
     cost: costMap[key]
   }));
 
+  // Department distribution
+  const deptMap: Record<string, number> = {};
+  assets.forEach(a => {
+    const d = a.department?.name || 'Unassigned';
+    deptMap[d] = (deptMap[d] || 0) + 1;
+  });
+  const deptData = Object.entries(deptMap).map(([name, count]) => ({ name, count }));
+
+  // Condition distribution
+  const condMap: Record<string, number> = { Excellent: 0, Good: 0, Fair: 0, 'Needs Repair': 0 };
+  assets.forEach(a => { if (condMap[a.condition] !== undefined) condMap[a.condition]++; });
+  const conditionData = Object.entries(condMap).map(([name, value]) => ({ name, value }));
+  const COND_COLORS = ['#34d399', 'hsl(151 65% 42%)', '#fbbf24', '#f87171'];
+
+  // Maintenance stats
+  const pendingMaint = maintenance.filter(m => m.status === 'Pending').length;
+  const resolvedMaint = maintenance.filter(m => m.status === 'Resolved').length;
+  const avgRepairTime = resolvedMaint > 0
+    ? Math.round(maintenance.filter(m => m.status === 'Resolved' && m.resolvedDate && m.createdAt)
+        .reduce((sum, m) => {
+          const diff = new Date(m.resolvedDate).getTime() - new Date(m.createdAt).getTime();
+          return sum + diff / (1000 * 60 * 60 * 24);
+        }, 0) / resolvedMaint)
+    : 0;
+
   const downloadCSV = () => {
     const csvRows = [];
     csvRows.push(['Category', 'Available', 'Allocated', 'Under Maintenance']);
@@ -222,6 +247,87 @@ export default function Reports() {
                   <Bar dataKey="cost" fill="var(--color-accent-foreground)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Department Analytics */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="border border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary" /> Assets by Department
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[260px]">
+                {deptData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No department data yet</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={deptData} margin={{ top: 5, right: 10, left: -20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
+                      <XAxis dataKey="name" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} axisLine={false} tickLine={false} angle={-20} textAnchor="end" />
+                      <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', fontSize: 11, borderRadius: 8 }} />
+                      <Bar dataKey="count" name="Assets" fill="hsl(151 65% 42%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-emerald-400" /> Asset Condition Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={conditionData.filter(c => c.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={85}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      fontSize={10}
+                    >
+                      {conditionData.map((_, idx) => (
+                        <Cell key={idx} fill={COND_COLORS[idx % COND_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', fontSize: 11, borderRadius: 8 }} />
+                    <Legend verticalAlign="bottom" height={32} iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Maintenance Statistics */}
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-amber-400" /> Maintenance Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Requests', val: maintenance.length, sub: 'All time' },
+                  { label: 'Resolved', val: resolvedMaint, sub: 'Completed tickets' },
+                  { label: 'Pending Approval', val: pendingMaint, sub: 'Awaiting action' },
+                  { label: 'Avg Repair Time', val: `${avgRepairTime}d`, sub: 'Days per ticket' },
+                ].map(s => (
+                  <div key={s.label} className="bg-accent/10 rounded-xl p-4 border border-border">
+                    <p className="text-2xl font-extrabold text-foreground">{s.val}</p>
+                    <p className="text-xs font-semibold text-foreground mt-0.5">{s.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.sub}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </>

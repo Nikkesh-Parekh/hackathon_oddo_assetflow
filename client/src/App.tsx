@@ -15,6 +15,8 @@ import Allocations from './pages/Allocations';
 import Audits from './pages/Audits';
 import Reports from './pages/Reports';
 import Organization from './pages/Organization';
+import Profile from './pages/Profile';
+import Approvals from './pages/Approvals';
 
 const queryClient = new QueryClient();
 
@@ -56,6 +58,8 @@ function App() {
               <Route path="audits" element={<Audits />} />
               <Route path="reports" element={<Reports />} />
               <Route path="org" element={<Organization />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="approvals" element={<ProtectedRoute requireRole={['Admin', 'Asset Manager']}><Approvals /></ProtectedRoute>} />
               {/* Other routes to be implemented */}
             </Route>
           </Routes>

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import User, { UserRole } from '../models/User';
 import ActivityLog from '../models/ActivityLog';
 import { AuthRequest } from '../middleware/authMiddleware';
 
@@ -45,12 +45,12 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Get system activity logs
-// @route   GET /api/users/logs
-// @access  Private
 export const getActivityLogs = async (req: AuthRequest, res: Response) => {
   try {
-    const logs = await ActivityLog.find({})
+    const isManager = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.ASSET_MANAGER;
+    const query = isManager ? {} : { user: req.user?._id };
+    
+    const logs = await ActivityLog.find(query)
       .populate('user', 'name email')
       .sort({ createdAt: -1 })
       .limit(30);

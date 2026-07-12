@@ -107,6 +107,8 @@ export default function Audits() {
   };
 
   const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
+  const isDesignatedAuditor = activeCycle?.auditors?.some((aud: any) => aud._id === user?._id);
+  const isAuditor = isManager || isDesignatedAuditor;
 
   // Toggle auditor selection
   const handleToggleAuditor = (id: string) => {
@@ -142,7 +144,7 @@ export default function Audits() {
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-foreground">Audit Cycles</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent>
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground font-sans">Loading audits...</div>
             ) : cycles.length === 0 ? (
@@ -151,49 +153,80 @@ export default function Audits() {
                 No inventory audits created yet.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-muted-foreground bg-accent/20 uppercase">
-                    <tr>
-                      <th className="px-6 py-4 font-semibold">Audit Name</th>
-                      <th className="px-6 py-4 font-semibold">Scope</th>
-                      <th className="px-6 py-4 font-semibold">Duration</th>
-                      <th className="px-6 py-4 font-semibold">Status</th>
-                      <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {cycles.map(cycle => (
-                      <tr key={cycle._id} className="hover:bg-accent/10 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-foreground">{cycle.name}</td>
-                        <td className="px-6 py-4 text-muted-foreground">
-                          {cycle.locationScope ? `Location: ${cycle.locationScope}` : 'All Locations'}
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">
-                          {format(new Date(cycle.startDate), 'MMM d, yyyy')} - {format(new Date(cycle.endDate), 'MMM d, yyyy')}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${
-                            cycle.status === 'Ongoing' ? 'bg-emerald-950/20 text-emerald-400 border-emerald-900/30' :
-                            cycle.status === 'Upcoming' ? 'bg-primary/20 text-primary border-primary/30' :
-                            'bg-stone-900/60 text-stone-400 border-stone-850'
-                          }`}>
-                            {cycle.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <Button variant="ghost" className="gap-1.5" onClick={() => handleViewDetails(cycle)}>
-                            <Eye className="h-4 w-4" /> Open
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid gap-4 md:grid-cols-2">
+                {cycles.map(cycle => {
+                  // Compute progress from results stored on the cycle (or default to 0)
+                  const scopedAssets = assets.filter(a =>
+                    !cycle.locationScope || a.location?.includes(cycle.locationScope)
+                  );
+                  const total = scopedAssets.length;
+                  const verified = cycle.results?.filter((r: any) => r.condition !== 'Missing' && r.condition !== 'Damaged').length || 0;
+                  const missing = cycle.results?.filter((r: any) => r.condition === 'Missing').length || 0;
+                  const damaged = cycle.results?.filter((r: any) => r.condition === 'Damaged').length || 0;
+                  const remaining = Math.max(0, total - (verified + missing + damaged));
+                  const pct = total > 0 ? Math.round(((verified + missing + damaged) / total) * 100) : 0;
+
+                  return (
+                    <div key={cycle._id} className="rounded-xl border border-border bg-accent/5 p-4 space-y-3 hover:border-primary/20 transition-colors">
+                      {/* Title + Status */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <p className="font-bold text-sm text-foreground">{cycle.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {cycle.locationScope ? `📍 ${cycle.locationScope}` : '🌐 All Locations'}
+                            {' · '}
+                            {format(new Date(cycle.startDate), 'MMM d')} – {format(new Date(cycle.endDate), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${
+                          cycle.status === 'Ongoing' ? 'bg-emerald-950/20 text-emerald-400 border-emerald-900/30' :
+                          cycle.status === 'Upcoming' ? 'bg-primary/20 text-primary border-primary/30' :
+                          'bg-stone-900/60 text-stone-400 border-stone-700'
+                        }`}>
+                          {cycle.status}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                          <span>Audit Progress</span>
+                          <span className="font-bold text-foreground">{pct}% complete</span>
+                        </div>
+                        <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all bg-primary"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Breakdown stats */}
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        {[
+                          { label: 'Verified', val: verified, color: 'text-emerald-400' },
+                          { label: 'Missing', val: missing, color: 'text-destructive' },
+                          { label: 'Damaged', val: damaged, color: 'text-amber-400' },
+                          { label: 'Remaining', val: remaining, color: 'text-muted-foreground' },
+                        ].map(s => (
+                          <div key={s.label} className="bg-card rounded-lg p-2 border border-border">
+                            <p className={`text-base font-extrabold ${s.color}`}>{s.val}</p>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Button variant="ghost" size="sm" className="w-full gap-1.5 text-xs" onClick={() => handleViewDetails(cycle)}>
+                        <Eye className="h-3.5 w-3.5" /> Open Reconciliation Sheet
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
+
       ) : (
         // ACTIVE CYCLE SHEET
         <div className="grid gap-6 md:grid-cols-3">
@@ -235,7 +268,7 @@ export default function Audits() {
                                   {res.status === 'Verified' && <Check className="h-3 w-3 shrink-0" />}
                                   {res.status}
                                 </span>
-                                {isManager && (
+                                {isAuditor && (
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
@@ -246,7 +279,7 @@ export default function Audits() {
                                   </Button>
                                 )}
                               </div>
-                            ) : (
+                            ) : isAuditor ? (
                               <div className="flex gap-1.5">
                                 <Button 
                                   variant="outline" 
@@ -270,6 +303,8 @@ export default function Audits() {
                                   Missing
                                 </Button>
                               </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Awaiting Auditor</span>
                             )}
                           </div>
                         </div>

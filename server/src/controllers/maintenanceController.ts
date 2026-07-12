@@ -3,6 +3,7 @@ import Maintenance, { MaintenanceStatus } from '../models/Maintenance';
 import Asset, { AssetStatus } from '../models/Asset';
 import ActivityLog from '../models/ActivityLog';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { UserRole } from '../models/User';
 
 // @desc    Raise a maintenance request
 // @route   POST /api/maintenance
@@ -119,7 +120,10 @@ export const resolveMaintenance = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const getMaintenanceRequests = async (req: AuthRequest, res: Response) => {
   try {
-    const requests = await Maintenance.find({})
+    const isManager = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.ASSET_MANAGER;
+    const query = isManager ? {} : { requestedBy: req.user?._id };
+
+    const requests = await Maintenance.find(query)
       .populate('asset', 'name assetTag')
       .populate('requestedBy', 'name email');
     res.json(requests);

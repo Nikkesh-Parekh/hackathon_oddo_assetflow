@@ -1,4 +1,6 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
@@ -10,12 +12,43 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Bell
+  Bell,
+  Inbox,
+  User
 } from 'lucide-react';
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
+
+  // Fetch pending approvals count for badge
+  useEffect(() => {
+    const isManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
+    if (!isManager) return;
+    const fetchCount = async () => {
+      try {
+        const [allocRes, maintRes] = await Promise.all([
+          api.get('/allocations'),
+          api.get('/maintenance'),
+        ]);
+        const transfers = allocRes.data.filter((a: any) => a.status === 'Transfer Requested').length;
+        const maintenance = maintRes.data.filter((m: any) => m.status === 'Pending').length;
+        setPendingCount(transfers + maintenance);
+      } catch {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000); // refresh every 60s
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -30,6 +63,7 @@ export default function MainLayout() {
     { name: 'Maintenance', path: '/maintenance', icon: Wrench },
     { name: 'Audits', path: '/audits', icon: ClipboardCheck },
     { name: 'Reports', path: '/reports', icon: BarChart3 },
+    { name: 'Approvals', path: '/approvals', icon: Inbox, roles: ['Admin', 'Asset Manager'], badge: pendingCount },
     { name: 'Organization', path: '/org', icon: Settings, roles: ['Admin'] },
   ];
 
@@ -48,16 +82,23 @@ export default function MainLayout() {
             <NavLink
               key={item.name}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
+            className={({ isActive }) =>
+                `flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
                   isActive 
                     ? 'bg-primary text-primary-foreground font-semibold' 
                     : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
                 }`
               }
             >
-              <item.icon className="h-4.5 w-4.5 mr-3 shrink-0 opacity-80" />
-              {item.name}
+              <span className="flex items-center">
+                <item.icon className="h-4.5 w-4.5 mr-3 shrink-0 opacity-80" />
+                {item.name}
+              </span>
+              {(item as any).badge > 0 && (
+                <span className="ml-auto px-1.5 py-0.5 rounded-full bg-destructive text-white text-[9px] font-bold leading-none">
+                  {(item as any).badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
@@ -71,6 +112,19 @@ export default function MainLayout() {
               <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
             </div>
           </div>
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `flex items-center w-full px-3 py-2 mb-1 text-sm font-medium rounded-lg transition-all duration-150 ${
+                isActive
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
+              }`
+            }
+          >
+            <User className="h-4.5 w-4.5 mr-3" />
+            My Profile
+          </NavLink>
           <button 
             onClick={handleLogout}
             className="flex items-center w-full px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-all duration-150"
@@ -97,7 +151,7 @@ export default function MainLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 relative bg-background/50">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-6 relative bg-background/50">
           {/* Subtle background decoration */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/3"></div>
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10 translate-y-1/3 -translate-x-1/3"></div>
