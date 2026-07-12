@@ -7,10 +7,11 @@ import { Check, X, Inbox, ArrowLeftRight, Wrench, AlertTriangle } from 'lucide-r
 
 export default function Approvals() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'transfers' | 'maintenance'>('transfers');
+  const [activeTab, setActiveTab] = useState<'transfers' | 'maintenance' | 'history'>('transfers');
 
   const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
   const [pendingMaintenance, setPendingMaintenance] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async (isInitial = false) => {
@@ -22,6 +23,9 @@ export default function Approvals() {
       ]);
       setPendingTransfers(allocRes.data.filter((a: any) => a.status === 'Transfer Requested'));
       setPendingMaintenance(maintRes.data.filter((m: any) => m.status === 'Pending'));
+      
+      const pastMaint = maintRes.data.filter((m: any) => m.status === 'Approved' || m.status === 'Rejected' || m.status === 'Resolved');
+      setHistory(pastMaint);
     } catch (err) {
       console.error('Failed to load approvals', err);
     } finally {
@@ -114,6 +118,17 @@ export default function Approvals() {
               {pendingMaintenance.length}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeTab === 'history'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Inbox className="h-4 w-4" />
+          Previously Approved
         </button>
       </div>
 
@@ -260,6 +275,58 @@ export default function Approvals() {
                           ✓ Approved
                         </span>
                       )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* HISTORY APPROVALS */}
+          {activeTab === 'history' && (
+            <div className="space-y-3">
+              {history.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-2">
+                  <Inbox className="h-10 w-10 text-muted-foreground/20" />
+                  <p className="text-sm">No previously approved requests.</p>
+                </div>
+              ) : (
+                history.map(m => (
+                  <Card key={m._id} className="border border-border bg-card opacity-80">
+                    <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                            {m.asset?.assetTag}
+                          </span>
+                          <span className="text-sm font-semibold text-foreground">{m.asset?.name}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                            m.priority === 'Critical' ? 'bg-destructive/20 text-destructive border-destructive/30' :
+                            m.priority === 'High' ? 'bg-amber-950/20 text-amber-400 border-amber-900/30' :
+                            m.priority === 'Medium' ? 'bg-sky-950/20 text-sky-400 border-sky-900/30' :
+                            'bg-stone-900/60 text-stone-400 border-stone-700'
+                          }`}>{m.priority}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Raised By:</span>
+                            <span className="text-foreground font-semibold ml-1">{m.requestedBy?.name || 'Unknown'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Final Status:</span>
+                            <span className={`font-semibold ml-1 ${m.status === 'Approved' ? 'text-emerald-400' : m.status === 'Resolved' ? 'text-blue-400' : 'text-destructive'}`}>{m.status}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground border-l-2 border-border pl-2">
+                          {m.issueDescription}
+                        </p>
+                      </div>
+
+                      <span className={`text-xs font-semibold border px-3 py-1 rounded-lg shrink-0 ${m.status === 'Approved' ? 'text-emerald-400 border-emerald-900/30 bg-emerald-950/20' : m.status === 'Resolved' ? 'text-blue-400 border-blue-900/30 bg-blue-950/20' : 'text-destructive border-destructive/30 bg-destructive/10'}`}>
+                        {m.status === 'Approved' ? '✓ Approved' : m.status === 'Resolved' ? '✓ Resolved' : '✗ Rejected'}
+                      </span>
                     </CardContent>
                   </Card>
                 ))
